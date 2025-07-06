@@ -46,7 +46,7 @@ A comprehensive Python application for monitoring Ruuvi environmental sensors vi
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/your-username/ruuvi-sensor-service.git
 cd ruuvi-sensor-service
 
 # Run the installation script
@@ -474,6 +474,28 @@ sudo chmod 600 /opt/ruuvi-sensor/.env
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 📝 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes and version information.
+
+## 🔗 Related Projects
+
+- **Ruuvi Innovations**: [Official Ruuvi sensor documentation](https://ruuvi.com/)
+- **InfluxDB**: [Time-series database documentation](https://docs.influxdata.com/)
+- **Grafana**: [Monitoring and visualization platform](https://grafana.com/docs/)
+- **BlueZ**: [Linux Bluetooth protocol stack](http://www.bluez.org/)
+
+## 📊 Project Status
+
+![Project Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
+![Python Version](https://img.shields.io/badge/Python-3.8%2B-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Platform](https://img.shields.io/badge/Platform-Linux-lightgrey)
+
+**Current Version**: 1.0.0
+**Development Status**: ✅ Complete and Production-Ready
+**Last Updated**: January 2025
 
 ## 🤝 Support
 

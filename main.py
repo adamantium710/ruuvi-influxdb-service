@@ -87,7 +87,8 @@ def print_banner():
 ║  • Interactive CLI with monitoring dashboard                                 ║
 ║  • Comprehensive logging and performance monitoring                          ║
 ║                                                                              ║
-║  Version: 1.0.0                                                             ║
+║  Version: 1.0.0 - Production Ready                                          ║
+║  License: MIT                                                                ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
     """
     print(banner)
@@ -111,6 +112,7 @@ def main():
         print("3. Copy environment file: cp .env.sample .env")
         print("4. Edit .env with your InfluxDB settings")
         print("5. Run again: python main.py menu")
+        print("\nFor automated installation, run: sudo ./install.sh")
         sys.exit(1)
     
     print("✅ Environment check passed")
