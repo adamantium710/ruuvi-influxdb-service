@@ -1,0 +1,43 @@
+[Unit]
+Description=Ruuvi Sensor Service - BLE sensor monitoring and data collection
+Documentation=https://github.com/your-org/ruuvi-sensor-service
+After=network.target bluetooth.service
+Wants=network.target
+Requires=bluetooth.service
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/python3 /opt/ruuvi-sensor-service/main.py daemon
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Working directory
+WorkingDirectory=/opt/ruuvi-sensor-service
+
+# Environment
+Environment=PYTHONPATH=/opt/ruuvi-sensor-service/src
+EnvironmentFile=-/opt/ruuvi-sensor-service/.env
+
+# Security settings
+User=ruuvi
+Group=ruuvi
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ruuvi-sensor-service/data /opt/ruuvi-sensor-service/logs /opt/ruuvi-sensor-service/backups
+PrivateTmp=true
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ruuvi-sensor
+
+[Install]
+WantedBy=multi-user.target
