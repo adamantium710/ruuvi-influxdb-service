@@ -338,53 +338,35 @@ class RuuviDaemon:
         """Main continuous scanning loop."""
         self.logger.info("Starting continuous scan loop...")
         
-        while self._running and not self._shutdown_requested:
-            try:
-                # Start continuous scanning
-                await self.ble_scanner.start_continuous_scan()
+        try:
+            # Start continuous scanning once - it runs its own loop
+            await self.ble_scanner.start_continuous_scan()
+            
+            # Wait for shutdown - the scanner handles its own continuous operation
+            while self._running and not self._shutdown_requested:
+                await asyncio.sleep(1)
                 
-                # Scan for configured interval
-                scan_interval = self.config.ble_scan_interval
-                await asyncio.sleep(scan_interval)
+            # Update statistics on successful completion
+            self._stats.scan_cycles += 1
+            self._consecutive_errors = 0
                 
-                # Update statistics
-                self._stats.scan_cycles += 1
+        except Exception as e:
+            self.logger.error(f"Continuous scan loop error: {e}")
+            self._consecutive_errors += 1
+            self._stats.errors_count += 1
+            
+            # Check for too many consecutive errors
+            if self._consecutive_errors >= self._max_consecutive_errors:
+                self.logger.critical("Too many consecutive errors, shutting down...")
+                self._shutdown_requested = True
                 
-                # Reset consecutive errors on successful scan
-                self._consecutive_errors = 0
-                
-            except Exception as e:
-                self.logger.error(f"Scan loop error: {e}")
-                self._consecutive_errors += 1
-                self._stats.errors_count += 1
-                
-                # Stop scanning on error
+        finally:
+            # Stop scanning on exit
+            if self.ble_scanner:
                 try:
                     await self.ble_scanner.stop_continuous_scan()
-                except Exception:
-                    pass
-                
-                # Error backoff
-                if self._consecutive_errors >= self._max_consecutive_errors:
-                    self.logger.critical("Too many consecutive errors, shutting down...")
-                    self._shutdown_requested = True
-                    break
-                
-                # Exponential backoff
-                backoff_time = min(
-                    self._error_backoff_base * (2 ** self._consecutive_errors),
-                    self._error_backoff_max
-                )
-                
-                self.logger.info(f"Backing off for {backoff_time:.1f} seconds...")
-                await asyncio.sleep(backoff_time)
-        
-        # Stop scanning when exiting loop
-        if self.ble_scanner:
-            try:
-                await self.ble_scanner.stop_continuous_scan()
-            except Exception as e:
-                self.logger.error(f"Error stopping scanner: {e}")
+                except Exception as e:
+                    self.logger.warning(f"Error stopping scanner: {e}")
         
         self.logger.info("Continuous scan loop stopped")
     
@@ -461,6 +443,14 @@ class RuuviDaemon:
                     self._stats.cpu_usage_percent = process.cpu_percent()
                 except ImportError:
                     pass
+                
+                # Periodic metadata save (batched to avoid race conditions)
+                if self.metadata_manager:
+                    try:
+                        if self.metadata_manager.save_if_dirty():
+                            self.logger.debug("Saved metadata (batched)")
+                    except Exception as e:
+                        self.logger.error(f"Failed to save metadata: {e}")
                 
                 # Notify status callbacks
                 status = self.get_status()
@@ -558,6 +548,14 @@ class RuuviDaemon:
         if self._config_observer:
             self._config_observer.stop()
             self._config_observer.join()
+        
+        # Save any pending metadata changes before shutdown
+        if self.metadata_manager:
+            try:
+                if self.metadata_manager.save_if_dirty():
+                    self.logger.info("Saved pending metadata changes during shutdown")
+            except Exception as e:
+                self.logger.error(f"Failed to save metadata during shutdown: {e}")
         
         # Cleanup components
         if self.ble_scanner:

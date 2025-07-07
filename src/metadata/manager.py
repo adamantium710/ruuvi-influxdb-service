@@ -311,6 +311,29 @@ class MetadataManager:
         
         self._save_to_file(self._metadata)
     
+    def save_if_dirty(self) -> bool:
+        """
+        Save metadata only if it has been modified since last save.
+        
+        Returns:
+            bool: True if metadata was saved, False if no save was needed
+        """
+        if self._metadata is None:
+            return False
+        
+        # Check if metadata has been modified since last save
+        if hasattr(self._metadata, '_dirty') and not self._metadata._dirty:
+            return False
+        
+        try:
+            self._save_to_file(self._metadata)
+            if hasattr(self._metadata, '_dirty'):
+                self._metadata._dirty = False
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to save metadata: {e}")
+            return False
+    
     def reload(self) -> MetadataFile:
         """
         Force reload metadata from file.
@@ -467,7 +490,7 @@ class MetadataManager:
     
     def update_sensor_last_seen(self, mac_address: str, timestamp: Optional[datetime] = None):
         """
-        Update sensor's last seen timestamp.
+        Update sensor's last seen timestamp without immediately saving.
         
         Args:
             mac_address: MAC address of the sensor
@@ -476,7 +499,22 @@ class MetadataManager:
         if timestamp is None:
             timestamp = datetime.utcnow()
         
-        self.update_sensor(mac_address, last_seen=timestamp)
+        # Update sensor without saving to avoid race conditions
+        try:
+            mac_address = normalize_mac_address(mac_address)
+        except ValueError as e:
+            raise MetadataValidationError(f"Invalid MAC address: {e}")
+        
+        metadata = self.load()
+        sensor = metadata.update_sensor(mac_address, last_seen=timestamp)
+        
+        if sensor:
+            # Mark metadata as dirty for batched saving
+            if not hasattr(metadata, '_dirty'):
+                metadata._dirty = True
+            else:
+                metadata._dirty = True
+            self.logger.debug(f"Updated sensor {mac_address} last_seen: {timestamp}")
     
     def get_stale_sensors(self, threshold_hours: int = 24) -> Dict[str, SensorMetadata]:
         """
