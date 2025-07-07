@@ -39,6 +39,7 @@ logs/
 # IDE
 .vscode/
 .idea/
+.kilocode/
 *.swp
 *.swo
 
@@ -81,7 +82,6 @@ htmlcov/
 .vscode/launch.json
 .vscode/tasks.json
 .vscode/extensions.json
-.kilocode/
 
 # macOS specific
 .AppleDouble
