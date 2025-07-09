@@ -273,6 +273,24 @@ class Config:
         except ConfigurationError as e:
             errors.append(str(e))
         
+        # Validate weather configuration if enabled
+        if self.weather_enabled:
+            try:
+                if self.weather_location_latitude < -90 or self.weather_location_latitude > 90:
+                    errors.append("WEATHER_LOCATION_LATITUDE must be between -90 and 90")
+                if self.weather_location_longitude < -180 or self.weather_location_longitude > 180:
+                    errors.append("WEATHER_LOCATION_LONGITUDE must be between -180 and 180")
+                if self.weather_api_timeout <= 0:
+                    errors.append("WEATHER_API_TIMEOUT must be positive")
+                if self.weather_api_retry_attempts < 1:
+                    errors.append("WEATHER_API_RETRY_ATTEMPTS must be at least 1")
+                if self.weather_forecast_interval <= 0:
+                    errors.append("WEATHER_FORECAST_INTERVAL must be positive")
+                if self.weather_forecast_days < 1 or self.weather_forecast_days > 16:
+                    errors.append("WEATHER_FORECAST_DAYS must be between 1 and 16")
+            except ConfigurationError as e:
+                errors.append(str(e))
+        
         if errors:
             raise ConfigurationError("Configuration validation failed:\n" + "\n".join(f"- {error}" for error in errors))
         
@@ -280,7 +298,7 @@ class Config:
     
     def get_summary(self) -> dict:
         """Get configuration summary for logging/debugging."""
-        return {
+        summary = {
             'influxdb': {
                 'host': self.influxdb_host,
                 'port': self.influxdb_port,
@@ -312,6 +330,33 @@ class Config:
                 'buffer_size': self.service_buffer_size,
             }
         }
+        
+        # Add weather configuration if enabled
+        if self.weather_enabled:
+            summary['weather'] = {
+                'enabled': self.weather_enabled,
+                'location': {
+                    'latitude': self.weather_location_latitude,
+                    'longitude': self.weather_location_longitude,
+                    'timezone': self.weather_timezone,
+                },
+                'api': {
+                    'base_url': self.weather_api_base_url,
+                    'timeout': self.weather_api_timeout,
+                    'retry_attempts': self.weather_api_retry_attempts,
+                    'rate_limit': self.weather_api_rate_limit_requests,
+                },
+                'storage': {
+                    'bucket': self.weather_influxdb_bucket,
+                },
+                'scheduling': {
+                    'forecast_interval': self.weather_forecast_interval,
+                    'forecast_days': self.weather_forecast_days,
+                    'historical_days': self.weather_historical_days,
+                }
+            }
+        
+        return summary
     
     def validate_environment(self):
         """Validate environment and configuration."""
@@ -387,6 +432,82 @@ class Config:
     def performance_monitoring(self) -> bool:
         """Get performance monitoring setting."""
         return self.get_bool("PERFORMANCE_MONITORING", True)
+    
+    # Weather Configuration
+    @property
+    def weather_enabled(self) -> bool:
+        """Get weather forecast enabled setting."""
+        return self.get_bool("WEATHER_ENABLED", False)
+    
+    @property
+    def weather_location_latitude(self) -> float:
+        """Get weather location latitude (Planegg coordinates)."""
+        return self.get_float("WEATHER_LOCATION_LATITUDE", 48.1031)
+    
+    @property
+    def weather_location_longitude(self) -> float:
+        """Get weather location longitude (Planegg coordinates)."""
+        return self.get_float("WEATHER_LOCATION_LONGITUDE", 11.4247)
+    
+    @property
+    def weather_api_base_url(self) -> str:
+        """Get weather API base URL."""
+        return self.get_str("WEATHER_API_BASE_URL", "https://api.open-meteo.com/v1")
+    
+    @property
+    def weather_api_timeout(self) -> int:
+        """Get weather API timeout in seconds."""
+        return self.get_int("WEATHER_API_TIMEOUT", 30)
+    
+    @property
+    def weather_api_retry_attempts(self) -> int:
+        """Get weather API retry attempts."""
+        return self.get_int("WEATHER_API_RETRY_ATTEMPTS", 3)
+    
+    @property
+    def weather_api_retry_delay(self) -> float:
+        """Get weather API retry delay in seconds."""
+        return self.get_float("WEATHER_API_RETRY_DELAY", 2.0)
+    
+    @property
+    def weather_api_rate_limit_requests(self) -> int:
+        """Get weather API rate limit requests per minute."""
+        return self.get_int("WEATHER_API_RATE_LIMIT_REQUESTS", 10)
+    
+    @property
+    def weather_influxdb_bucket(self) -> str:
+        """Get weather InfluxDB bucket name."""
+        return self.get_str("WEATHER_INFLUXDB_BUCKET", "weather_forecasts")
+    
+    @property
+    def weather_forecast_interval(self) -> int:
+        """Get weather forecast fetch interval in minutes."""
+        return self.get_int("WEATHER_FORECAST_INTERVAL", 60)
+    
+    @property
+    def weather_forecast_days(self) -> int:
+        """Get number of forecast days to retrieve."""
+        return self.get_int("WEATHER_FORECAST_DAYS", 7)
+    
+    @property
+    def weather_historical_days(self) -> int:
+        """Get number of historical days to retrieve."""
+        return self.get_int("WEATHER_HISTORICAL_DAYS", 7)
+    
+    @property
+    def weather_circuit_breaker_failure_threshold(self) -> int:
+        """Get circuit breaker failure threshold."""
+        return self.get_int("WEATHER_CIRCUIT_BREAKER_FAILURE_THRESHOLD", 5)
+    
+    @property
+    def weather_circuit_breaker_recovery_timeout(self) -> int:
+        """Get circuit breaker recovery timeout in seconds."""
+        return self.get_int("WEATHER_CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 300)
+    
+    @property
+    def weather_timezone(self) -> str:
+        """Get weather timezone."""
+        return self.get_str("WEATHER_TIMEZONE", "Europe/Berlin")
 
 
 # Global configuration instance

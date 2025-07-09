@@ -1,608 +1,718 @@
 # Troubleshooting Guide
 
-This guide covers common issues and their solutions for the Ruuvi Sensor Service.
+This comprehensive troubleshooting guide covers common issues and solutions for both the core Ruuvi sensor system and the Phase 2 weather forecast analysis system.
 
-## 🔍 Quick Diagnostics
+## Table of Contents
 
-### System Health Check
+1. [Quick Diagnostics](#quick-diagnostics)
+2. [Core System Issues](#core-system-issues)
+3. [Phase 2 Weather System Issues](#phase-2-weather-system-issues)
+4. [Database Issues](#database-issues)
+5. [Grafana Dashboard Issues](#grafana-dashboard-issues)
+6. [Network and API Issues](#network-and-api-issues)
+7. [Performance Issues](#performance-issues)
+8. [Service Management Issues](#service-management-issues)
+9. [Configuration Issues](#configuration-issues)
+10. [Advanced Debugging](#advanced-debugging)
 
-Run the built-in diagnostic tool:
+## Quick Diagnostics
 
-```bash
-python main.py --diagnose
-```
-
-This will check:
-- Bluetooth adapter status
-- InfluxDB connectivity
-- Configuration validity
-- File permissions
-- Service status
-
-### Log Analysis
-
-Check recent logs for errors:
+### Health Check Commands
 
 ```bash
-# Application logs
-tail -f logs/ruuvi_sensor.log | grep ERROR
+# Core system health check
+python scripts/health_check.py
 
-# Service logs
-sudo journalctl -u ruuvi-sensor -f --since "1 hour ago"
+# Weather system health check
+python scripts/weather_service_health_check.py
 
-# System Bluetooth logs
-sudo journalctl -u bluetooth -f --since "1 hour ago"
+# Service status
+sudo systemctl status ruuvi-monitor.service
+sudo systemctl status weather-forecast.service
+
+# Recent logs
+sudo journalctl -u ruuvi-monitor.service -n 50
+sudo journalctl -u weather-forecast.service -n 50
 ```
 
-## 🔧 Common Issues
+### System Information
 
-### 1. Bluetooth Issues
+```bash
+# Check Python environment
+python --version
+pip list | grep -E "(influxdb|requests|bluepy|pandas)"
 
-#### Problem: "No Bluetooth adapter found"
+# Check Bluetooth
+sudo systemctl status bluetooth
+hciconfig
 
-**Symptoms:**
-- Error: `BluetoothError: No Bluetooth adapter found`
-- BLE scanning fails to start
+# Check InfluxDB
+influx ping
+influx bucket list
+
+# Check disk space
+df -h
+du -sh /var/log/
+```
+
+## Core System Issues
+
+### Bluetooth Scanning Problems
+
+#### Issue: No sensors detected
+```
+ERROR: No Ruuvi sensors found during scan
+```
 
 **Solutions:**
-
-1. **Check Bluetooth Hardware:**
+1. **Check Bluetooth adapter:**
    ```bash
-   # List Bluetooth adapters
-   hciconfig
-   
-   # If no adapters shown, check USB devices
-   lsusb | grep -i bluetooth
-   
-   # Check kernel modules
-   lsmod | grep bluetooth
-   ```
-
-2. **Enable Bluetooth Service:**
-   ```bash
-   sudo systemctl enable bluetooth
-   sudo systemctl start bluetooth
    sudo systemctl status bluetooth
-   ```
-
-3. **Reset Bluetooth Adapter:**
-   ```bash
-   sudo hciconfig hci0 down
+   hciconfig
    sudo hciconfig hci0 up
-   
-   # Or reset USB Bluetooth adapter
-   sudo usb_modeswitch -R -v 0a12 -p 0001
    ```
 
-4. **Install Missing Drivers:**
-   ```bash
-   # Ubuntu/Debian
-   sudo apt install bluetooth bluez bluez-tools
-   
-   # CentOS/RHEL
-   sudo yum install bluez bluez-utils
-   ```
+2. **Verify sensor proximity:**
+   - Ensure sensors are within 10-30 meters
+   - Check sensor battery levels
+   - Try manual scan: `sudo hcitool lescan`
 
-#### Problem: "Permission denied" for Bluetooth operations
-
-**Symptoms:**
-- Error: `PermissionError: [Errno 13] Permission denied`
-- Bluetooth operations require sudo
-
-**Solutions:**
-
-1. **Add User to Bluetooth Group:**
+3. **Permission issues:**
    ```bash
    sudo usermod -a -G bluetooth $USER
-   # Logout and login again
-   ```
-
-2. **Set Bluetooth Capabilities:**
-   ```bash
-   # For Python executable
    sudo setcap 'cap_net_raw,cap_net_admin+eip' $(which python3)
-   
-   # Or for specific script
-   sudo setcap 'cap_net_raw,cap_net_admin+eip' /usr/local/bin/ruuvi-sensor
    ```
 
-3. **Configure udev Rules:**
-   ```bash
-   # Create udev rule
-   sudo tee /etc/udev/rules.d/99-bluetooth.rules << EOF
-   KERNEL=="hci[0-9]*", GROUP="bluetooth", MODE="0664"
-   SUBSYSTEM=="bluetooth", GROUP="bluetooth", MODE="0664"
-   EOF
-   
-   # Reload udev rules
-   sudo udevadm control --reload-rules
-   sudo udevadm trigger
-   ```
-
-#### Problem: "No sensors found" during scanning
-
-**Symptoms:**
-- BLE scanning completes but finds no Ruuvi sensors
-- Sensors are nearby and powered on
-
-**Solutions:**
-
-1. **Manual BLE Scan:**
-   ```bash
-   # Test BLE scanning
-   sudo hcitool lescan
-   
-   # Advanced scan with timeout
-   timeout 30 sudo hcitool lescan | grep -i ruuvi
-   ```
-
-2. **Check Sensor Status:**
-   - Ensure sensors have fresh batteries
-   - Verify sensors are in advertising mode
-   - Check sensor proximity (within 10 meters)
-   - Look for sensor LED indicators
-
-3. **Adjust Scan Parameters:**
-   ```bash
-   # In .env file, increase scan duration
-   BLE_SCAN_TIMEOUT=30
-   BLE_SCAN_INTERVAL=5
-   ```
-
-4. **Reset Bluetooth Stack:**
+4. **Reset Bluetooth:**
    ```bash
    sudo systemctl restart bluetooth
-   sudo hciconfig hci0 reset
+   sudo rfkill unblock bluetooth
    ```
 
-### 2. InfluxDB Issues
-
-#### Problem: "Connection refused" to InfluxDB
-
-**Symptoms:**
-- Error: `ConnectionError: HTTPConnectionPool(host='localhost', port=8086)`
-- Cannot connect to InfluxDB server
+#### Issue: Intermittent sensor readings
+```
+WARNING: Sensor XX:XX:XX:XX:XX:XX timeout
+```
 
 **Solutions:**
+1. **Increase scan timeout:**
+   ```python
+   # In config
+   SCAN_TIMEOUT = 30  # Increase from default 10
+   ```
 
-1. **Check InfluxDB Service:**
+2. **Check interference:**
+   - Move away from WiFi routers
+   - Check for other BLE devices
+   - Try different times of day
+
+3. **Sensor maintenance:**
+   - Replace batteries
+   - Clean sensor contacts
+   - Reset sensor (button press)
+
+### Historical Data Retrieval Issues
+
+#### Issue: GATT connection failures
+```
+ERROR: Failed to connect to sensor for historical data
+```
+
+**Solutions:**
+1. **Connection retry logic:**
+   ```bash
+   # Check current retry settings
+   grep -r "MAX_RETRIES" src/
+   
+   # Increase retries in config
+   GATT_MAX_RETRIES = 5
+   GATT_RETRY_DELAY = 2.0
+   ```
+
+2. **Bluetooth stack reset:**
+   ```bash
+   sudo systemctl restart bluetooth
+   sudo rmmod btusb && sudo modprobe btusb
+   ```
+
+3. **Sensor-specific issues:**
+   - Some sensors require longer connection time
+   - Try connecting manually: `gatttool -b XX:XX:XX:XX:XX:XX -I`
+
+## Phase 2 Weather System Issues
+
+### Weather API Problems
+
+#### Issue: API key authentication failures
+```
+ERROR: Weather API authentication failed (401)
+```
+
+**Solutions:**
+1. **Verify API keys:**
+   ```bash
+   # Check environment variables
+   echo $OPENWEATHER_API_KEY
+   echo $OPEN_METEO_API_KEY
+   
+   # Test API directly
+   curl "https://api.openweathermap.org/data/2.5/weather?q=London&appid=YOUR_KEY"
+   ```
+
+2. **Key configuration:**
+   ```bash
+   # Update .env.weather
+   OPENWEATHER_API_KEY=your_actual_key_here
+   OPEN_METEO_API_KEY=not_required_but_can_be_set
+   
+   # Reload environment
+   source .env.weather
+   ```
+
+3. **API limits:**
+   - Check usage limits on provider dashboard
+   - Implement rate limiting in code
+   - Consider upgrading API plan
+
+#### Issue: Weather data not being stored
+```
+ERROR: Failed to store weather forecast data
+```
+
+**Solutions:**
+1. **Database connection:**
+   ```bash
+   # Test InfluxDB connection
+   python -c "
+   from src.weather.storage import WeatherStorage
+   storage = WeatherStorage()
+   print('Connection successful')
+   "
+   ```
+
+2. **Schema validation:**
+   ```bash
+   # Check bucket exists
+   influx bucket list | grep ruuvi
+   
+   # Verify write permissions
+   influx auth list
+   ```
+
+3. **Data format issues:**
+   ```python
+   # Debug data structure
+   import json
+   from src.weather.api import WeatherAPI
+   
+   api = WeatherAPI()
+   data = api.get_current_weather(lat=60.1699, lon=24.9384)
+   print(json.dumps(data, indent=2))
+   ```
+
+### Forecast Accuracy Calculation Issues
+
+#### Issue: No accuracy data generated
+```
+WARNING: No matching sensor data for accuracy calculation
+```
+
+**Solutions:**
+1. **Time synchronization:**
+   ```bash
+   # Check system time
+   timedatectl status
+   
+   # Sync if needed
+   sudo timedatectl set-ntp true
+   ```
+
+2. **Data availability:**
+   ```bash
+   # Check sensor data exists
+   influx query 'from(bucket:"ruuvi") |> range(start: -24h) |> filter(fn: (r) => r._measurement == "weather_sensors") |> count()'
+   
+   # Check forecast data exists
+   influx query 'from(bucket:"ruuvi") |> range(start: -24h) |> filter(fn: (r) => r._measurement == "weather_forecasts") |> count()'
+   ```
+
+3. **Matching logic:**
+   ```python
+   # Debug matching in accuracy calculator
+   from src.weather.accuracy import ForecastAccuracyCalculator
+   
+   calc = ForecastAccuracyCalculator()
+   calc.debug_mode = True  # Enable debug output
+   calc.calculate_accuracy()
+   ```
+
+### Service Scheduling Issues
+
+#### Issue: Weather service not running automatically
+```
+ERROR: weather-forecast.service failed to start
+```
+
+**Solutions:**
+1. **Service status:**
+   ```bash
+   sudo systemctl status weather-forecast.service
+   sudo systemctl status weather-forecast.timer
+   
+   # Check service logs
+   sudo journalctl -u weather-forecast.service -f
+   ```
+
+2. **Timer configuration:**
+   ```bash
+   # Verify timer is enabled
+   sudo systemctl is-enabled weather-forecast.timer
+   
+   # Check timer schedule
+   sudo systemctl list-timers | grep weather
+   ```
+
+3. **Manual execution:**
+   ```bash
+   # Test manual run
+   cd /home/paul/ruuvi
+   python scripts/weather_forecast_main.py
+   
+   # Check exit code
+   echo $?
+   ```
+
+## Database Issues
+
+### InfluxDB Connection Problems
+
+#### Issue: Connection refused
+```
+ERROR: Failed to connect to InfluxDB: Connection refused
+```
+
+**Solutions:**
+1. **Service status:**
    ```bash
    sudo systemctl status influxdb
    sudo systemctl start influxdb
    sudo systemctl enable influxdb
    ```
 
-2. **Test InfluxDB Connection:**
+2. **Network configuration:**
    ```bash
-   # Test HTTP endpoint
-   curl -i http://localhost:8086/ping
+   # Check listening ports
+   sudo netstat -tlnp | grep 8086
    
-   # Test with authentication
-   curl -i -u username:password http://localhost:8086/ping
+   # Test connection
+   curl -I http://localhost:8086/ping
    ```
 
-3. **Check InfluxDB Configuration:**
+3. **Configuration file:**
    ```bash
-   # View InfluxDB config
-   sudo cat /etc/influxdb/influxdb.conf
+   # Check InfluxDB config
+   sudo cat /etc/influxdb/influxdb.conf | grep -A5 "\[http\]"
    
-   # Check HTTP section
-   grep -A 10 "\[http\]" /etc/influxdb/influxdb.conf
+   # Verify bind address
+   grep "bind-address" /etc/influxdb/influxdb.conf
    ```
 
-4. **Verify Network Connectivity:**
-   ```bash
-   # Check if port is open
-   netstat -tlnp | grep 8086
-   
-   # Test from remote host
-   telnet your-influxdb-host 8086
-   ```
+### Data Retention Issues
 
-#### Problem: "Database does not exist"
-
-**Symptoms:**
-- Error: `InfluxDBError: database not found: ruuvi_sensors`
-- Data writes fail
+#### Issue: Old data not being deleted
+```
+WARNING: Database size growing unexpectedly
+```
 
 **Solutions:**
-
-1. **Create Database:**
+1. **Check retention policies:**
    ```bash
-   # Using InfluxDB CLI
-   influx -execute "CREATE DATABASE ruuvi_sensors"
-   
-   # With authentication
-   influx -username admin -password password -execute "CREATE DATABASE ruuvi_sensors"
+   influx bucket list
+   influx bucket update --name ruuvi --retention 30d
    ```
 
-2. **Verify Database Creation:**
+2. **Manual cleanup:**
    ```bash
-   influx -execute "SHOW DATABASES"
+   # Delete old data
+   influx delete --bucket ruuvi --start 2023-01-01T00:00:00Z --stop 2023-06-01T00:00:00Z
    ```
 
-3. **Set Retention Policy:**
+3. **Monitor disk usage:**
    ```bash
-   influx -execute "CREATE RETENTION POLICY \"default\" ON \"ruuvi_sensors\" DURATION 30d REPLICATION 1 DEFAULT"
+   du -sh /var/lib/influxdb/
+   df -h /var/lib/influxdb/
    ```
 
-#### Problem: Authentication failures
+## Grafana Dashboard Issues
 
-**Symptoms:**
-- Error: `InfluxDBError: authorization failed`
-- Cannot authenticate with InfluxDB
+### Dashboard Import Problems
+
+#### Issue: Dashboard import fails
+```
+ERROR: Dashboard validation failed
+```
 
 **Solutions:**
-
-1. **Check Credentials:**
+1. **JSON validation:**
    ```bash
-   # Test authentication
-   influx -username your_username -password your_password
+   # Validate JSON syntax
+   python -m json.tool grafana/dashboard-live-weather-comparison.json > /dev/null
    ```
 
-2. **Create InfluxDB User:**
+2. **Datasource configuration:**
    ```bash
-   # Connect as admin
-   influx
-   
-   # Create user
-   CREATE USER "ruuvi_user" WITH PASSWORD 'secure_password'
-   GRANT ALL ON "ruuvi_sensors" TO "ruuvi_user"
+   # Check InfluxDB datasource in Grafana
+   curl -u admin:admin http://localhost:3000/api/datasources
    ```
 
-3. **Update Configuration:**
-   ```bash
-   # In .env file
-   INFLUXDB_USERNAME=ruuvi_user
-   INFLUXDB_PASSWORD=secure_password
-   ```
+3. **Version compatibility:**
+   - Ensure Grafana version supports dashboard format
+   - Update dashboard schema version if needed
 
-### 3. Configuration Issues
-
-#### Problem: "Configuration file not found"
-
-**Symptoms:**
-- Error: `ConfigurationError: .env file not found`
-- Application fails to start
+#### Issue: No data in panels
+```
+WARNING: Panel shows "No data"
+```
 
 **Solutions:**
-
-1. **Create Configuration File:**
+1. **Query testing:**
    ```bash
-   cp .env.sample .env
-   nano .env
+   # Test Flux query directly
+   influx query 'from(bucket:"ruuvi") |> range(start: -1h) |> filter(fn: (r) => r._measurement == "weather_sensors") |> limit(n:10)'
    ```
 
-2. **Run Setup Wizard:**
+2. **Time range:**
+   - Check dashboard time range settings
+   - Verify data exists for selected period
+   - Adjust time range to match data availability
+
+3. **Field mapping:**
    ```bash
-   python main.py --setup-wizard
+   # Check field names
+   influx query 'from(bucket:"ruuvi") |> range(start: -1h) |> filter(fn: (r) => r._measurement == "weather_sensors") |> keys()'
    ```
 
-3. **Verify File Permissions:**
-   ```bash
-   ls -la .env
-   chmod 600 .env
-   ```
+## Network and API Issues
 
-#### Problem: "Invalid configuration values"
+### Internet Connectivity
 
-**Symptoms:**
-- Error: `ConfigurationError: Invalid value for BLE_SCAN_INTERVAL`
-- Configuration validation fails
+#### Issue: API calls timing out
+```
+ERROR: Request timeout to weather API
+```
 
 **Solutions:**
-
-1. **Validate Configuration:**
+1. **Network connectivity:**
    ```bash
-   python main.py --validate-config
+   ping -c 4 api.openweathermap.org
+   curl -I https://api.open-meteo.com/v1/forecast
    ```
 
-2. **Check Data Types:**
+2. **DNS resolution:**
    ```bash
-   # Numeric values should not have quotes
-   BLE_SCAN_INTERVAL=10  # Correct
-   BLE_SCAN_INTERVAL="10"  # Incorrect
+   nslookup api.openweathermap.org
+   dig api.open-meteo.com
    ```
 
-3. **Review Sample Configuration:**
+3. **Firewall settings:**
    ```bash
-   cat .env.sample
+   sudo ufw status
+   sudo iptables -L OUTPUT
    ```
 
-### 4. Service Issues
+### Proxy Configuration
 
-#### Problem: Service fails to start
-
-**Symptoms:**
-- `sudo systemctl start ruuvi-sensor` fails
-- Service status shows "failed"
+#### Issue: Requests blocked by proxy
+```
+ERROR: ProxyError: Cannot connect to proxy
+```
 
 **Solutions:**
-
-1. **Check Service Logs:**
+1. **Environment variables:**
    ```bash
-   sudo journalctl -u ruuvi-sensor -n 50
-   sudo systemctl status ruuvi-sensor -l
+   export HTTP_PROXY=http://proxy.company.com:8080
+   export HTTPS_PROXY=http://proxy.company.com:8080
+   export NO_PROXY=localhost,127.0.0.1
    ```
 
-2. **Verify Service File:**
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable ruuvi-sensor
+2. **Python requests configuration:**
+   ```python
+   # In weather API code
+   proxies = {
+       'http': 'http://proxy.company.com:8080',
+       'https': 'http://proxy.company.com:8080'
+   }
+   response = requests.get(url, proxies=proxies)
    ```
 
-3. **Check File Permissions:**
-   ```bash
-   ls -la /opt/ruuvi-sensor/
-   sudo chown -R ruuvi:ruuvi /opt/ruuvi-sensor/
-   ```
+## Performance Issues
 
-4. **Test Manual Execution:**
-   ```bash
-   # Run as service user
-   sudo -u ruuvi python3 /opt/ruuvi-sensor/main.py --test
-   ```
+### High CPU Usage
 
-#### Problem: Service stops unexpectedly
-
-**Symptoms:**
-- Service runs briefly then stops
-- No obvious error messages
+#### Issue: Python process consuming high CPU
+```
+WARNING: High CPU usage detected
+```
 
 **Solutions:**
-
-1. **Check Resource Usage:**
+1. **Process monitoring:**
    ```bash
-   # Monitor memory usage
+   top -p $(pgrep -f "python.*ruuvi")
+   htop
+   ```
+
+2. **Scan frequency optimization:**
+   ```python
+   # Reduce scan frequency
+   SCAN_INTERVAL = 60  # Increase from 30 seconds
+   SCAN_DURATION = 10  # Reduce from 30 seconds
+   ```
+
+3. **Profiling:**
+   ```python
+   # Add profiling to identify bottlenecks
+   import cProfile
+   cProfile.run('main_function()', 'profile_output.prof')
+   ```
+
+### Memory Issues
+
+#### Issue: Memory usage growing over time
+```
+ERROR: MemoryError: Unable to allocate memory
+```
+
+**Solutions:**
+1. **Memory monitoring:**
+   ```bash
    free -h
-   
-   # Check disk space
-   df -h
-   
-   # Monitor CPU usage
-   top
+   ps aux | grep python | sort -k4 -nr
    ```
 
-2. **Increase Service Limits:**
-   ```bash
-   # Edit service file
-   sudo systemctl edit ruuvi-sensor
-   
-   # Add limits
-   [Service]
-   LimitNOFILE=65536
-   LimitNPROC=4096
-   ```
-
-3. **Enable Core Dumps:**
-   ```bash
-   # In service file
-   [Service]
-   LimitCORE=infinity
-   ```
-
-### 5. Performance Issues
-
-#### Problem: High CPU usage
-
-**Symptoms:**
-- System becomes slow
-- High CPU usage by Python process
-
-**Solutions:**
-
-1. **Adjust Scan Intervals:**
-   ```bash
-   # In .env file, increase intervals
-   BLE_SCAN_INTERVAL=30
-   BLE_SCAN_TIMEOUT=10
-   ```
-
-2. **Monitor Performance:**
-   ```bash
-   python main.py --stats
-   htop -p $(pgrep -f ruuvi)
-   ```
-
-3. **Optimize Database Writes:**
-   ```bash
-   # Batch writes in configuration
-   INFLUXDB_BATCH_SIZE=100
-   INFLUXDB_FLUSH_INTERVAL=10
-   ```
-
-#### Problem: High memory usage
-
-**Symptoms:**
-- Memory usage grows over time
-- System runs out of memory
-
-**Solutions:**
-
-1. **Check for Memory Leaks:**
-   ```bash
-   # Monitor memory usage
-   watch -n 5 'ps aux | grep python'
-   
+2. **Memory leaks:**
+   ```python
    # Use memory profiler
    pip install memory-profiler
-   python -m memory_profiler main.py
+   python -m memory_profiler scripts/weather_forecast_main.py
    ```
 
-2. **Limit Data Retention:**
-   ```bash
-   # Set shorter retention in InfluxDB
-   influx -execute "ALTER RETENTION POLICY \"default\" ON \"ruuvi_sensors\" DURATION 7d"
+3. **Garbage collection:**
+   ```python
+   import gc
+   gc.collect()  # Force garbage collection
    ```
 
-3. **Restart Service Periodically:**
-   ```bash
-   # Add to crontab
-   0 3 * * * /bin/systemctl restart ruuvi-sensor
-   ```
+## Service Management Issues
 
-## 🔧 Advanced Diagnostics
+### Systemd Service Problems
 
-### Network Diagnostics
-
-```bash
-# Check network connectivity
-ping -c 4 your-influxdb-host
-
-# Check DNS resolution
-nslookup your-influxdb-host
-
-# Check firewall rules
-sudo iptables -L
-sudo ufw status
+#### Issue: Service fails to start
+```
+ERROR: Job for ruuvi-monitor.service failed
 ```
 
-### Bluetooth Diagnostics
-
-```bash
-# Detailed Bluetooth information
-sudo hciconfig -a
-
-# Bluetooth device information
-sudo hcitool dev
-
-# Scan for all BLE devices
-sudo hcitool lescan --duplicates
-
-# Monitor Bluetooth HCI traffic
-sudo hcidump -i hci0
-```
-
-### System Diagnostics
-
-```bash
-# Check system resources
-free -h
-df -h
-uptime
-iostat
-
-# Check system logs
-sudo dmesg | tail -50
-sudo journalctl --since "1 hour ago" | grep -i error
-```
-
-## 📊 Monitoring and Alerting
-
-### Log Monitoring
-
-Set up log monitoring with tools like:
-
-1. **Logwatch:**
+**Solutions:**
+1. **Service file validation:**
    ```bash
-   sudo apt install logwatch
-   sudo logwatch --detail Med --mailto admin@example.com --service ruuvi-sensor
+   sudo systemd-analyze verify /etc/systemd/system/ruuvi-monitor.service
    ```
 
-2. **Fail2ban for Error Patterns:**
+2. **Permissions:**
    ```bash
-   # Create fail2ban filter for repeated errors
-   sudo tee /etc/fail2ban/filter.d/ruuvi-sensor.conf << EOF
-   [Definition]
-   failregex = ERROR.*Connection failed
-   ignoreregex =
+   # Check file permissions
+   ls -la /etc/systemd/system/ruuvi-monitor.service
+   
+   # Fix if needed
+   sudo chmod 644 /etc/systemd/system/ruuvi-monitor.service
+   ```
+
+3. **Reload systemd:**
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl reset-failed ruuvi-monitor.service
+   ```
+
+### Log Rotation Issues
+
+#### Issue: Log files growing too large
+```
+WARNING: Log file size exceeding limits
+```
+
+**Solutions:**
+1. **Configure logrotate:**
+   ```bash
+   sudo cat > /etc/logrotate.d/ruuvi << EOF
+   /var/log/ruuvi/*.log {
+       daily
+       rotate 7
+       compress
+       delaycompress
+       missingok
+       notifempty
+       create 644 ruuvi ruuvi
+   }
    EOF
    ```
 
-### Health Checks
+2. **Manual rotation:**
+   ```bash
+   sudo logrotate -f /etc/logrotate.d/ruuvi
+   ```
 
-Create monitoring scripts:
+## Configuration Issues
+
+### Environment Variables
+
+#### Issue: Configuration not loading
+```
+ERROR: Required configuration missing
+```
+
+**Solutions:**
+1. **Environment file location:**
+   ```bash
+   # Check file exists and is readable
+   ls -la .env .env.weather
+   
+   # Source manually
+   source .env.weather
+   env | grep -E "(INFLUX|WEATHER|OPENWEATHER)"
+   ```
+
+2. **Service environment:**
+   ```bash
+   # Check systemd service environment
+   sudo systemctl show ruuvi-monitor.service | grep Environment
+   ```
+
+3. **Configuration validation:**
+   ```python
+   from src.utils.config import Config
+   config = Config()
+   config.validate()  # Check all required settings
+   ```
+
+## Advanced Debugging
+
+### Debug Mode
+
+Enable debug logging for detailed troubleshooting:
+
+```python
+# In main scripts
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Or set environment variable
+export LOG_LEVEL=DEBUG
+```
+
+### Database Debugging
+
+```bash
+# Enable InfluxDB debug logging
+influx config set --host http://localhost:8086 --token YOUR_TOKEN --org YOUR_ORG --active
+
+# Query debugging
+influx query --debug 'from(bucket:"ruuvi") |> range(start: -1h) |> limit(n:1)'
+```
+
+### Network Debugging
+
+```bash
+# Monitor network traffic
+sudo tcpdump -i any host api.openweathermap.org
+sudo netstat -tulpn | grep python
+
+# SSL/TLS debugging
+openssl s_client -connect api.openweathermap.org:443 -servername api.openweathermap.org
+```
+
+### Python Debugging
+
+```python
+# Interactive debugging
+import pdb; pdb.set_trace()
+
+# Remote debugging
+import debugpy
+debugpy.listen(5678)
+debugpy.wait_for_client()
+```
+
+## Getting Help
+
+### Log Collection
+
+When reporting issues, collect these logs:
 
 ```bash
 #!/bin/bash
-# health_check.sh
-
-# Check service status
-if ! systemctl is-active --quiet ruuvi-sensor; then
-    echo "CRITICAL: Ruuvi sensor service is not running"
-    exit 2
-fi
-
-# Check InfluxDB connectivity
-if ! curl -s http://localhost:8086/ping > /dev/null; then
-    echo "CRITICAL: InfluxDB is not responding"
-    exit 2
-fi
-
-# Check recent data
-RECENT_DATA=$(influx -execute "SELECT COUNT(*) FROM ruuvi_measurements WHERE time > now() - 5m" -database ruuvi_sensors -format json)
-if [[ "$RECENT_DATA" == *'"values":[[0,0]]'* ]]; then
-    echo "WARNING: No recent sensor data"
-    exit 1
-fi
-
-echo "OK: All systems operational"
-exit 0
+# Log collection script
+mkdir -p debug_logs
+sudo journalctl -u ruuvi-monitor.service -n 100 > debug_logs/ruuvi-service.log
+sudo journalctl -u weather-forecast.service -n 100 > debug_logs/weather-service.log
+cp /var/log/ruuvi/*.log debug_logs/ 2>/dev/null || true
+dmesg | tail -50 > debug_logs/dmesg.log
+systemctl status ruuvi-monitor.service > debug_logs/service-status.log
+tar -czf debug_logs_$(date +%Y%m%d_%H%M%S).tar.gz debug_logs/
 ```
 
-## 🆘 Getting Help
+### System Information
 
-### Before Asking for Help
+```bash
+# System info for support
+uname -a
+lsb_release -a
+python3 --version
+pip3 list | grep -E "(influx|requests|bluepy)"
+hciconfig
+sudo systemctl status bluetooth influxdb grafana-server
+```
 
-1. **Check Logs:** Review application and system logs
-2. **Run Diagnostics:** Use built-in diagnostic tools
-3. **Search Documentation:** Check README and troubleshooting guide
-4. **Test Components:** Isolate the problem to specific components
+### Community Support
 
-### Information to Include
+1. **GitHub Issues**: Report bugs with full logs and system info
+2. **Documentation**: Check docs/ directory for detailed guides
+3. **Health Checks**: Run diagnostic scripts before reporting
+4. **Search**: Check existing issues for similar problems
 
-When reporting issues, provide:
+## Prevention
 
-1. **System Information:**
-   ```bash
-   uname -a
-   python3 --version
-   pip3 list | grep -E "(bleak|influxdb|rich)"
-   ```
+### Regular Maintenance
 
-2. **Configuration (sanitized):**
-   ```bash
-   cat .env | sed 's/PASSWORD=.*/PASSWORD=***/'
-   ```
+```bash
+# Weekly maintenance script
+#!/bin/bash
+# Check service health
+python scripts/health_check.py
+python scripts/weather_service_health_check.py
 
-3. **Recent Logs:**
-   ```bash
-   tail -50 logs/ruuvi_sensor.log
-   sudo journalctl -u ruuvi-sensor -n 50
-   ```
+# Clean old logs
+sudo journalctl --vacuum-time=7d
 
-4. **Service Status:**
-   ```bash
-   sudo systemctl status ruuvi-sensor
-   ```
+# Update system
+sudo apt update && sudo apt upgrade
 
-### Emergency Recovery
+# Check disk space
+df -h | grep -E "(/$|/var)"
 
-If the system is completely broken:
+# Restart services if needed
+sudo systemctl restart ruuvi-monitor.service
+sudo systemctl restart weather-forecast.service
+```
 
-1. **Stop All Services:**
-   ```bash
-   sudo systemctl stop ruuvi-sensor
-   ```
+### Monitoring Setup
 
-2. **Reset Configuration:**
-   ```bash
-   cp .env.sample .env
-   python main.py --setup-wizard
-   ```
-
-3. **Reinstall:**
-   ```bash
-   sudo ./uninstall.sh
-   sudo ./install.sh
-   ```
-
-4. **Restore from Backup:**
-   ```bash
-   # If you have backups
-   python main.py --import backup.json
-   ```
+```bash
+# Set up basic monitoring
+crontab -e
+# Add: 0 */6 * * * /path/to/health_check.py | mail -s "Ruuvi Health" admin@example.com
+```
 
 ---
 
-**Remember:** Most issues can be resolved by checking logs, verifying configuration, and ensuring all dependencies are properly installed and running.
+**Remember**: Always check the basic diagnostics first, then work through specific issue categories. Most problems can be resolved by checking service status, logs, and configuration files.
+
+For complex issues, enable debug logging and collect comprehensive system information before seeking help.

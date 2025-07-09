@@ -1,0 +1,53 @@
+[Unit]
+Description=Ruuvi Weather Forecast Orchestrator
+Documentation=https://github.com/ruuvi/weather-forecast-system
+After=network-online.target influxdb.service
+Wants=network-online.target
+Requires=influxdb.service
+
+[Service]
+Type=exec
+User=ruuvi
+Group=ruuvi
+WorkingDirectory=/opt/ruuvi
+Environment=PATH=/opt/ruuvi/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PYTHONPATH=/opt/ruuvi
+Environment=VIRTUAL_ENV=/opt/ruuvi/venv
+ExecStart=/opt/ruuvi/venv/bin/python /opt/ruuvi/scripts/weather_forecast_main.py --once
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ruuvi/logs /opt/ruuvi/reports /opt/ruuvi/data
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+RestrictNamespaces=true
+
+# Restart policy
+Restart=on-failure
+RestartSec=30
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=weather-forecast
+
+# Timeout settings
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

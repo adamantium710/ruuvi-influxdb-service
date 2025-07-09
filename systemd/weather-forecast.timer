@@ -1,0 +1,19 @@
+[Unit]
+Description=Run Ruuvi Weather Forecast Orchestrator every 6 hours
+Documentation=https://github.com/ruuvi/weather-forecast-system
+Requires=weather-forecast.service
+
+[Timer]
+# Run every 6 hours starting at 00:00
+OnCalendar=*-*-* 00,06,12,18:00:00
+# Run 5 minutes after boot if we missed a scheduled run
+OnBootSec=5min
+# Add randomization to prevent all instances from running simultaneously
+RandomizedDelaySec=300
+# Ensure timer is persistent across reboots
+Persistent=true
+# Wake system from suspend if needed (optional)
+WakeSystem=false
+
+[Install]
+WantedBy=timers.target

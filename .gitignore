@@ -64,6 +64,7 @@ Thumbs.db
 # Data files that might contain sensitive information
 data/
 backups/
+reports/
 
 # Export files
 export-*.md
@@ -234,3 +235,4 @@ bluetooth_keys/
 # Configuration backups
 *.conf.bak
 *.config.bak
+phase2.md 
