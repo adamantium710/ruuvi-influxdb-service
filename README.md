@@ -60,7 +60,7 @@ A comprehensive Python application for monitoring Ruuvi environmental sensors vi
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/ruuvi-sensor-service.git
+git clone https://github.com/your-org/ruuvi-sensor-service.git
 cd ruuvi-sensor-service
 
 # Run the installation script
@@ -99,7 +99,7 @@ WEATHER_LOCATION_LONGITUDE=13.4050
 WEATHER_TIMEZONE=Europe/Berlin
 
 # InfluxDB Configuration
-INFLUXDB_URL=http://localhost:8086
+INFLUXDB_URL=http://192.168.1.100:8086
 INFLUXDB_TOKEN=your_influxdb_token_here
 INFLUXDB_ORG=your_organization
 INFLUXDB_BUCKET=ruuvi_sensors
@@ -163,7 +163,9 @@ sudo journalctl -u weather-forecast.service -f
    sudo usermod -a -G bluetooth $USER
    ```
 
-4. **Install and Configure InfluxDB 2.x**:
+4. **Setup InfluxDB 2.x** (Choose one option):
+
+   **Option A: Local Installation**
    ```bash
    # Ubuntu/Debian
    wget -qO- https://repos.influxdata.com/influxdb.key | sudo apt-key add -
@@ -177,10 +179,28 @@ sudo journalctl -u weather-forecast.service -f
    influx setup
    ```
 
+   **Option B: Docker Container**
+   ```bash
+   # Run InfluxDB in Docker
+   docker run -d \
+     --name influxdb \
+     -p 8086:8086 \
+     -v influxdb-storage:/var/lib/influxdb2 \
+     -v influxdb-config:/etc/influxdb2 \
+     influxdb:2.7
+   
+   # Setup via web UI at http://localhost:8086
+   ```
+
+   **Option C: Remote InfluxDB Server**
+   - Use an existing InfluxDB server on your network
+   - Configure connection details in the `.env` file
+   - No local installation required
+
 5. **Create InfluxDB Buckets**:
    ```bash
-   # Create weather forecasts bucket
-   influx bucket create -n weather_forecasts -o your_org -r 90d
+   # Create weather forecasts bucket (adjust command for your setup)
+   influx bucket create -n weather_forecasts -o your_organization -r 90d
    
    # Verify buckets
    influx bucket list

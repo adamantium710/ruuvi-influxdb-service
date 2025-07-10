@@ -1,19 +1,19 @@
 [Unit]
 Description=Ruuvi Weather Forecast Orchestrator
 Documentation=https://github.com/ruuvi/weather-forecast-system
-After=network-online.target influxdb.service
+After=network-online.target
 Wants=network-online.target
-Requires=influxdb.service
 
 [Service]
 Type=exec
-User=ruuvi
-Group=ruuvi
-WorkingDirectory=/opt/ruuvi
-Environment=PATH=/opt/ruuvi/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-Environment=PYTHONPATH=/opt/ruuvi
-Environment=VIRTUAL_ENV=/opt/ruuvi/venv
-ExecStart=/opt/ruuvi/venv/bin/python /opt/ruuvi/scripts/weather_forecast_main.py --once
+EnvironmentFile=${RUUVI_INSTALL_DIR}/.env.weather
+User=${RUUVI_SERVICE_USER}
+Group=${RUUVI_SERVICE_USER}
+WorkingDirectory=${RUUVI_INSTALL_DIR}
+Environment=PATH=${RUUVI_INSTALL_DIR}/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PYTHONPATH=${RUUVI_INSTALL_DIR}
+Environment=VIRTUAL_ENV=${RUUVI_INSTALL_DIR}/.venv
+ExecStart=${RUUVI_INSTALL_DIR}/.venv/bin/python ${RUUVI_INSTALL_DIR}/scripts/weather_forecast_main.py --once
 ExecReload=/bin/kill -HUP $MAINPID
 
 # Resource limits
@@ -23,8 +23,7 @@ CPUQuota=50%
 # Security settings
 NoNewPrivileges=true
 ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/opt/ruuvi/logs /opt/ruuvi/reports /opt/ruuvi/data
+ReadWritePaths=${RUUVI_INSTALL_DIR}/logs ${RUUVI_INSTALL_DIR}/reports ${RUUVI_INSTALL_DIR}/data
 PrivateTmp=true
 ProtectKernelTunables=true
 ProtectKernelModules=true

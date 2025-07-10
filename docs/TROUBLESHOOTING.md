@@ -275,7 +275,7 @@ ERROR: weather-forecast.service failed to start
 3. **Manual execution:**
    ```bash
    # Test manual run
-   cd /home/paul/ruuvi
+   cd /opt/ruuvi-sensor-service
    python scripts/weather_forecast_main.py
    
    # Check exit code

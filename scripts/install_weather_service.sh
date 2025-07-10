@@ -20,15 +20,35 @@ Created: 2025-01-07
 
 set -euo pipefail
 
-# Default configuration
-DEFAULT_USER="ruuvi"
-DEFAULT_INSTALL_DIR="/opt/ruuvi"
-ENABLE_SERVICE=false
-DRY_RUN=false
-
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Load environment variables from .env.weather - REQUIRED
+if [[ -f "$PROJECT_ROOT/.env.weather" ]]; then
+    source "$PROJECT_ROOT/.env.weather"
+else
+    log_error ".env.weather file not found at $PROJECT_ROOT/.env.weather"
+    log_error "Please create .env.weather file with RUUVI_SERVICE_USER and RUUVI_INSTALL_DIR variables"
+    exit 1
+fi
+
+# Validate required environment variables
+if [[ -z "${RUUVI_SERVICE_USER:-}" ]]; then
+    log_error "RUUVI_SERVICE_USER environment variable is required in .env.weather"
+    exit 1
+fi
+
+if [[ -z "${RUUVI_INSTALL_DIR:-}" ]]; then
+    log_error "RUUVI_INSTALL_DIR environment variable is required in .env.weather"
+    exit 1
+fi
+
+# Configuration from environment variables
+DEFAULT_USER="$RUUVI_SERVICE_USER"
+DEFAULT_INSTALL_DIR="$RUUVI_INSTALL_DIR"
+ENABLE_SERVICE=false
+DRY_RUN=false
 
 # Colors for output
 RED='\033[0;31m'
@@ -62,20 +82,23 @@ Weather Forecast Service Installation Script
 Usage: $0 [OPTIONS]
 
 Options:
-    --user USER         Set the service user (default: $DEFAULT_USER)
-    --install-dir DIR   Set installation directory (default: $DEFAULT_INSTALL_DIR)
+    --user USER         Set the service user (overrides RUUVI_SERVICE_USER from .env.weather)
+    --install-dir DIR   Set installation directory (overrides RUUVI_INSTALL_DIR from .env.weather)
     --enable            Enable and start the service after installation
     --dry-run           Show what would be done without making changes
     --help              Show this help message
 
+Prerequisites:
+    - .env.weather file must exist with RUUVI_SERVICE_USER and RUUVI_INSTALL_DIR variables
+
 Examples:
-    # Install with defaults
+    # Install with settings from .env.weather
     sudo $0
 
     # Install and enable service
     sudo $0 --enable
 
-    # Install for different user and directory
+    # Override user and directory from command line
     sudo $0 --user weather --install-dir /home/weather/ruuvi
 
     # Dry run to see what would be done
@@ -186,14 +209,9 @@ install_weather_service() {
     
     # Create temporary service file with substitutions
     TEMP_SERVICE_FILE="/tmp/weather-forecast.service.$$"
-    sed -e "s|User=ruuvi|User=$SERVICE_USER|g" \
-        -e "s|Group=ruuvi|Group=$SERVICE_USER|g" \
-        -e "s|WorkingDirectory=/opt/ruuvi|WorkingDirectory=$INSTALL_DIR|g" \
-        -e "s|Environment=PATH=/opt/ruuvi/venv/bin|Environment=PATH=$INSTALL_DIR/venv/bin|g" \
-        -e "s|Environment=PYTHONPATH=/opt/ruuvi|Environment=PYTHONPATH=$INSTALL_DIR|g" \
-        -e "s|Environment=VIRTUAL_ENV=/opt/ruuvi/venv|Environment=VIRTUAL_ENV=$INSTALL_DIR/venv|g" \
-        -e "s|ExecStart=/opt/ruuvi/venv/bin/python /opt/ruuvi/scripts/weather_forecast_main.py|ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/scripts/weather_forecast_main.py|g" \
-        -e "s|ReadWritePaths=/opt/ruuvi/logs /opt/ruuvi/reports /opt/ruuvi/data|ReadWritePaths=$INSTALL_DIR/logs $INSTALL_DIR/reports $INSTALL_DIR/data|g" \
+    sed -e "s|\${RUUVI_SERVICE_USER}|$SERVICE_USER|g" \
+        -e "s|\${RUUVI_INSTALL_DIR}|$INSTALL_DIR|g" \
+        -e "s|EnvironmentFile=.*\.env\.weather|EnvironmentFile=$INSTALL_DIR/.env.weather|g" \
         "$SYSTEMD_SERVICE_FILE" > "$TEMP_SERVICE_FILE"
     
     execute_or_show "cp $TEMP_SERVICE_FILE /etc/systemd/system/weather-forecast.service"
@@ -232,16 +250,22 @@ install_weather_service() {
 
 Next Steps:
 1. Ensure the project code is installed in: $INSTALL_DIR
-2. Create and configure the virtual environment: $INSTALL_DIR/venv
-3. Configure environment variables in: $INSTALL_DIR/.env
-4. Test the service manually:
-   sudo -u $SERVICE_USER $INSTALL_DIR/venv/bin/python $INSTALL_DIR/scripts/weather_forecast_main.py --once
+2. Create and configure the virtual environment: $INSTALL_DIR/.venv
+3. Configure environment variables in: $INSTALL_DIR/.env.weather
+4. Configure InfluxDB connection settings for your remote InfluxDB server:
+   - Set INFLUXDB_HOST to your InfluxDB server hostname/IP (e.g., 192.168.1.100)
+   - Set INFLUXDB_PORT to your InfluxDB server port (default: 8086)
+   - Set INFLUXDB_TOKEN, INFLUXDB_ORG, and INFLUXDB_BUCKET appropriately
+   - Set RUUVI_INSTALL_DIR=$INSTALL_DIR
+   - Set RUUVI_SERVICE_USER=$SERVICE_USER
+5. Test the service manually:
+   sudo -u $SERVICE_USER $INSTALL_DIR/.venv/bin/python $INSTALL_DIR/scripts/weather_forecast_main.py --once
 
-5. Enable and start the timer (if not done already):
+6. Enable and start the timer (if not done already):
    sudo systemctl enable weather-forecast.timer
    sudo systemctl start weather-forecast.timer
 
-6. Monitor the service:
+7. Monitor the service:
    sudo systemctl status weather-forecast.timer
    sudo journalctl -u weather-forecast.service -f
 

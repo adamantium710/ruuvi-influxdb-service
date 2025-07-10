@@ -99,9 +99,9 @@ ruuvi_signal.measurement_sequence = [value]
 - ✅ **Directory Structure**: Required directories (logs, data, backups) created
 
 ### InfluxDB Configuration
-- ✅ **Host**: 192.168.50.107:8086
+- ✅ **Host**: 192.168.1.100:8086
 - ✅ **Authentication**: Token-based auth working
-- ✅ **Organization**: Paul
+- ✅ **Organization**: your_organization
 - ✅ **Bucket**: ruuvi_sensors
 - ✅ **Connection**: Stable throughout test
 

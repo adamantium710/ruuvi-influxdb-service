@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.production
+.env.weather
 
 # Python
 __pycache__/

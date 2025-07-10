@@ -292,7 +292,12 @@ print_completion_message() {
     echo
     echo -e "${YELLOW}Next Steps:${NC}"
     echo "  1. Edit configuration: sudo nano $INSTALL_DIR/.env"
-    echo "  2. Configure your InfluxDB settings in the .env file"
+    echo "  2. Configure your remote InfluxDB server settings in the .env file:"
+    echo "     - INFLUXDB_HOST=192.168.1.100 (or your InfluxDB server IP)"
+    echo "     - INFLUXDB_PORT=8086 (or your custom port)"
+    echo "     - INFLUXDB_TOKEN=your_influxdb_token"
+    echo "     - INFLUXDB_ORG=your_organization"
+    echo "     - INFLUXDB_BUCKET=ruuvi_sensors"
     echo "  3. Start the service: sudo systemctl start $SERVICE_NAME"
     echo "  4. Check service status: sudo systemctl status $SERVICE_NAME"
     echo "  5. View logs: sudo journalctl -u $SERVICE_NAME -f"
