@@ -151,19 +151,19 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_sensors\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"actual\")",
+          "query": "from(bucket: \"ruuvi_sensors\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_sensors\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"actual\")",
           "refId": "A"
         },
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> filter(fn: (r) => r.forecast_horizon == \"1h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"1h_forecast\")",
+          "query": "from(bucket: \"weather_forecasts\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> filter(fn: (r) => r.forecast_horizon == \"1h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"1h_forecast\")",
           "refId": "B"
         },
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> filter(fn: (r) => r.forecast_horizon == \"6h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"6h_forecast\")",
+          "query": "from(bucket: \"weather_forecasts\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> filter(fn: (r) => r.forecast_horizon == \"6h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"6h_forecast\")",
           "refId": "C"
         },
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> filter(fn: (r) => r.forecast_horizon == \"24h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"24h_forecast\")",
+          "query": "from(bucket: \"weather_forecasts\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> filter(fn: (r) => r.forecast_horizon == \"24h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"24h_forecast\")",
           "refId": "D"
         }
       ],
@@ -242,15 +242,15 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_sensors\")\n  |> filter(fn: (r) => r._field == \"humidity\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"actual\")",
+          "query": "from(bucket: \"ruuvi_sensors\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_sensors\")\n  |> filter(fn: (r) => r._field == \"humidity\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"actual\")",
           "refId": "A"
         },
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"humidity\")\n  |> filter(fn: (r) => r.forecast_horizon == \"1h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"1h_forecast\")",
+          "query": "from(bucket: \"weather_forecasts\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"humidity\")\n  |> filter(fn: (r) => r.forecast_horizon == \"1h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"1h_forecast\")",
           "refId": "B"
         },
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"humidity\")\n  |> filter(fn: (r) => r.forecast_horizon == \"6h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"6h_forecast\")",
+          "query": "from(bucket: \"weather_forecasts\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"humidity\")\n  |> filter(fn: (r) => r.forecast_horizon == \"6h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"6h_forecast\")",
           "refId": "C"
         }
       ],
@@ -329,11 +329,11 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_sensors\")\n  |> filter(fn: (r) => r._field == \"pressure\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"actual\")",
+          "query": "from(bucket: \"ruuvi_sensors\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_sensors\")\n  |> filter(fn: (r) => r._field == \"pressure\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"actual\")",
           "refId": "A"
         },
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"pressure\")\n  |> filter(fn: (r) => r.forecast_horizon == \"1h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"1h_forecast\")",
+          "query": "from(bucket: \"weather_forecasts\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecasts\")\n  |> filter(fn: (r) => r._field == \"pressure\")\n  |> filter(fn: (r) => r.forecast_horizon == \"1h\")\n  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)\n  |> yield(name: \"1h_forecast\")",
           "refId": "B"
         }
       ],
@@ -393,7 +393,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecast_errors\")\n  |> filter(fn: (r) => r._field == \"absolute_error\")\n  |> filter(fn: (r) => r.metric == \"temperature\")\n  |> filter(fn: (r) => r.forecast_horizon == \"1h\")\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "query": "from(bucket: \"weather_forecast_errors\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecast_errors\")\n  |> filter(fn: (r) => r._field == \"absolute_error\")\n  |> filter(fn: (r) => r.metric == \"temperature\")\n  |> filter(fn: (r) => r.forecast_horizon == \"1h\")\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
@@ -453,7 +453,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "query": "from(bucket: \"ruuvi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecast_errors\")\n  |> filter(fn: (r) => r._field == \"absolute_error\")\n  |> filter(fn: (r) => r.metric == \"humidity\")\n  |> filter(fn: (r) => r.forecast_horizon == \"1h\")\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "query": "from(bucket: \"weather_forecast_errors\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"weather_forecast_errors\")\n  |> filter(fn: (r) => r._field == \"absolute_error\")\n  |> filter(fn: (r) => r.metric == \"humidity\")\n  |> filter(fn: (r) => r.forecast_horizon == \"1h\")\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
